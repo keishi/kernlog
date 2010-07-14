@@ -1,0 +1,57 @@
+{% extends "post.html" %}
+
+{% block title %}kern.log / Home{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script type="text/javascript" src="http://www.mathjax.org/MathJax/MathJax.js">
+  MathJax.Hub.Config({
+    extensions: ["tex2jax.js","TeX/noErrors.js"],
+	jax: ["input/TeX","output/HTML-CSS"],
+	tex2jax: {inlineMath: [['$','$'],["\\(","\\)"]]},
+	"HTML-CSS": {availableFonts:["TeX"]}
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+    <h1 id="heading">{% block heading %}Home{% endblock %}</h1>
+    {% if prev_link %}
+    <a href="{{ prev_link }}" style="float:left">≪ Previous</a>
+    {% endif %}
+    {% if next_link %}
+    <a href="{{ next_link }}" style="float:right">Next ≫</a>
+    {% endif %}
+    {% block entries %}
+    <ol class="entries">
+        {% for entry in entries %}
+            {% block entry %}
+            <li class="entry">
+                <div class="entry-body">
+                    <div>
+                        {{ entry.html }}
+                    </div>
+                    <div class="entry-metadata">
+                        by <b><a href="/{{ entry.user_profile.username }}" class="entry-author">{{ entry.user_profile.username }}</a></b> at
+                        <a href="/entry/{{ entry.key }}">{{ entry.modified_at|date:"g:i A M dS" }}</a>
+                        {% ifequal entry.user_profile.key current_profile.key %}
+                        |&nbsp;<a href="/edit/{{ entry.key }}">edit</a>
+                        |&nbsp;<a href="/delete/{{ entry.key }}">delete</a>
+                        {% endifequal %}
+                        
+                    </div>
+                </div>
+            </li>
+            {% endblock entry %}
+        {% endfor %}
+    </ol>
+    {% endblock entries %}
+    
+    {% if prev_link %}
+    <a href="{{ prev_link }}" style="float:left">≪ Previous</a>
+    {% endif %}
+    {% if next_link %}
+    <a href="{{ next_link }}" style="float:right">Next ≫</a>
+    {% endif %}
+{% endblock content %}

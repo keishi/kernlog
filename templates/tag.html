@@ -1,0 +1,10 @@
+{% extends "home.html" %}
+
+{% block title %}kern.log / #{{ tag }}{% endblock %}
+
+{% block heading %}
+{% if person_profile %}
+{{ person_profile.username }}'s
+{% else %}
+Everyone's
+{% endif %} <b>#{{ tag }}</b> entries.{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "post.html" %}
+
+{% block title %}kern.log / About{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+    <h1 id="heading">{% block heading %}About{% endblock %}</h1>
+    <p>kern.log is a place to store very short but structured notes.</p>
+{% endblock content %}

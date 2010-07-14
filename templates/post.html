@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="/static/js/jquery.tabby.js" type="text/javascript" charset="utf-8"></script>
+<script src="/static/js/jquery.elastic.js" type="text/javascript" charset="utf-8"></script>
+<script>
+jQuery(document).ready(function () {
+     $("#post-content").tabby().elastic();
+});
+</script>
+{% endblock %}
+
+{% block content %}
+{% if current_profile %}
+<div id="post-container">
+    <form action="{% if edit_entry %}/edit/{{ edit_entry.key }}{% else %}/post{% endif %}" method="post">
+        <div><textarea name="content" id="post-content">{% if edit_entry %}{{ edit_entry.markdown}}{% endif %}</textarea></div>
+        <div><input type="submit" value="{% if edit_entry %}Save{% else %}Post{% endif %}"></div>
+    </form>
+</div>
+{% endif %}
+{% endblock content %}

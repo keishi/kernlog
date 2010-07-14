@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}kern.log / Signup{% endblock %}
+
+{% block content %}
+    <form action="/signup" method="post">
+        <table>
+            {{ form }}
+        </table>
+        <div><input type="submit" value="Save"></div>
+    </form>
+{% endblock content %}

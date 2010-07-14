@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<rss version="2.0">
+    <channel>
+        <title>kern.log / {{ person_profile.username }}'s entries</title>
+        <link>http://www.kernlog.com/{{ person_profile.username }}</link>
+        <description>{{ person_profile.username }}'s entries</description>
+    </channel>
+    
+    {% for entry in entries %}
+        <item> 
+            <title>{{ entry.summary }}</title>
+            <link>http://kernlog.com/entry/{{ entry.key }}</link>  
+            <description>{{ entry.html }}</description>
+        </item>
+    {% endfor %}
+</rss>

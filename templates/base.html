@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {% block rss%}{% endblock %}
+    <link rel="stylesheet" href="/static/css/reset.css" type="text/css" media="screen">
+    <link rel="stylesheet" href="/static/css/main.css" type="text/css" media="screen">
+    <link rel="stylesheet" href="/static/css/codehilite.css" type="text/css" media="screen">
+    {% block scripts %}{% endblock %}
+    <title>{% block title %}{% endblock %}</title>
+    <script type="text/javascript">
+
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-17447767-1']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+
+    </script>
+</head>
+<body>
+    <div id="kg">
+        {% block kbar %}
+        <div id="kbar">
+            <nobr>
+                <b><a href="/">kern.log</a></b>
+                {% if current_profile %}
+                |&nbsp;<a href="/home">home</a>
+                {% endif %}
+            </nobr>
+        </div>
+        {% endblock %}
+        {% block kuser %}
+        <div id="kuser">
+            <nobr>
+                {% if current_profile %}
+                <b>{{ current_profile.username }}</b>
+                |&nbsp;<a href="/logout">Logout</a>
+                |&nbsp;<a href="/settings">Settings</a>
+                {% else %}
+                <b><a href="/signup">Signup</a></b>
+                |&nbsp;<b><a href="/login">Login</a></b>
+                {% endif %}
+            </nobr>
+        </div>
+        {% endblock %}
+        <div class="kbh"></div>
+    </div>
+    <div id="container">
+        {% block content %}{% endblock %}
+        <div id="footer">
+            <p id="sosumi">© 2010 - <a href="/about">about</a></p>
+        </div>
+    </div>
+</body>
+</html>
