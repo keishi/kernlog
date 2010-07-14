@@ -9,8 +9,9 @@
     {% for entry in entries %}
         <item> 
             <title>{{ entry.summary }}</title>
-            <link>http://kernlog.com/entry/{{ entry.key }}</link>  
-            <description>{{ entry.html }}</description>
+            <link>http://kernlog.com/entry/{{ entry.key }}</link>
+            <pubDate>{{ entry.modified_at|date:"r" }}</pubDate>
+            <description><![CDATA[{{ entry.html }}]]></description>
         </item>
     {% endfor %}
 </rss>

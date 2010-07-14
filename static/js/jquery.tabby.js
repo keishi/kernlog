@@ -59,6 +59,36 @@
 					return false;
 				}
 				
+				// Added to handle soft tabs
+                var evt = e;
+                var t = evt.target;
+                var ss = t.selectionStart;
+                var se = t.selectionEnd;
+                if (evt.keyCode==8 && t.value.slice(ss - 4,ss) == options.tabString) {
+                    evt.preventDefault();
+
+                    t.value = t.value.slice(0,ss - 4).concat(t.value.slice(ss,t.value.length));
+                    t.selectionStart = t.selectionEnd = ss - options.tabString.length;
+                }
+
+                // Delete key - delete following tab expansion, if exists
+                else if (evt.keyCode==46 && t.value.slice(se,se + 4) == options.tabString) {
+                    evt.preventDefault();
+
+                    t.value = t.value.slice(0,ss).concat(t.value.slice(ss + 4,t.value.length));
+                    t.selectionStart = t.selectionEnd = ss;
+                }
+                // Left/right arrow keys - move across the tab in one go
+                else if (evt.keyCode == 37 && t.value.slice(ss - 4,ss) == options.tabString) {
+                    evt.preventDefault();
+                    t.selectionStart = t.selectionEnd = ss - 4;
+                }
+                else if (evt.keyCode == 39 && t.value.slice(ss,ss + 4) == options.tabString) {
+                    evt.preventDefault();
+                    t.selectionStart = t.selectionEnd = ss + 4;
+                }
+                // End. Added to handle soft tabs
+				
 			}).bind('keyup',function (e) {
 				if (16 == $.fn.tabby.catch_kc(e)) pressed.shft = false;
 			}).bind('blur',function (e) { // workaround for Opera -- http://www.webdeveloper.com/forum/showthread.php?p=806588
@@ -92,7 +122,7 @@
 	}
 	
 	// plugin defaults
-	$.fn.tabby.defaults = {tabString : String.fromCharCode(9)};
+	$.fn.tabby.defaults = {tabString : "    "};
 	
 	function gecko_tab (o, shft, options) {
 		var ss = o.selectionStart;
@@ -103,13 +133,13 @@
 			// SHIFT+TAB
 			if (shft) {
 				// check to the left of the caret first
-				if ("\t" == o.value.substring(ss-options.tabString.length, ss)) {
+				if (options.tabString == o.value.substring(ss-options.tabString.length, ss)) {
 					o.value = o.value.substring(0, ss-options.tabString.length) + o.value.substring(ss); // put it back together omitting one character to the left
 					o.focus();
 					o.setSelectionRange(ss - options.tabString.length, ss - options.tabString.length);
 				} 
 				// then check to the right of the caret
-				else if ("\t" == o.value.substring(ss, ss + options.tabString.length)) {
+				else if (options.tabString == o.value.substring(ss, ss + options.tabString.length)) {
 					o.value = o.value.substring(0, ss) + o.value.substring(ss + options.tabString.length); // put it back together omitting one character to the right
 					o.focus();
 					o.setSelectionRange(ss,ss);

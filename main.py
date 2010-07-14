@@ -98,6 +98,7 @@ class Entry(db.Model, taggable.Taggable):
     modified_at = db.DateTimeProperty(auto_now=True)
     markdown = db.TextProperty()
     html = db.TextProperty()
+    summary = db.StringProperty(default="")
     def __init__(self, parent=None, key_name=None, app=None, **entity_values):
         db.Model.__init__(self, parent, key_name, app, **entity_values)
         taggable.Taggable.__init__(self)
@@ -109,6 +110,11 @@ class Entry(db.Model, taggable.Taggable):
         cleaner = xss.XssCleaner()
         html = markdown.markdown(self.markdown, ['tables', 'codehilite', 'tagdown', 'mathdown'])
         self.html = cleaner.strip(html)
+        source_lines = source.splitlines()
+        for line in source_lines:
+            if len(line.strip()) > 0:
+                self.summary = re.compile(r'<.*?>').sub('', markdown.markdown(line))
+                break
 
 class LoginHandler(webapp.RequestHandler):
     def get(self):
@@ -440,6 +446,10 @@ class AboutHandler(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'templates/about.html')
         self.response.out.write(template.render(path, template_values))
 
+
+# TODO: Accessing many UserProfiles takes a lot of time. Should
+#       create a public timeline datastore with data from UserProfile
+#       embedded. 
 class MainHandler(webapp.RequestHandler):
     def get(self):
         current_profile = UserProfile.current_profile()
