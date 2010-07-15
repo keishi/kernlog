@@ -298,6 +298,7 @@ class ArchiveHandler(webapp.RequestHandler):
     def get(self, username):
         current_profile = UserProfile.current_profile()
         
+        # TODO: Redirect home
         if username == 'home':
             person_profile = current_profile
         else:

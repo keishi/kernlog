@@ -108,22 +108,29 @@ a:visited {
 
 .entry-body .codehilite {
     overflow-y: auto;
-    margin: 0.4em 0px 0.5em;
+    padding-left: 20px;
+}
+
+.entry-body h1,
+.entry-body h2,
+.entry-body h3,
+.entry-body h4,
+.entry-body h5,
+.entry-body h6,
+.entry-body p,
+.entry-body ol,
+.entry-body ul,
+.entry-body .codehilite {
+    margin: 0.4em 0 0.5em;
 }
 
 .entry-body h1 {
     font-size: 1.1em;
     font-weight: bold;
-    margin: 0.4em 0px 0.5em;
 }
 
 .entry-body h2 {
     font-weight: bold;
-    margin: 0.4em 0px 0.5em;
-}
-
-.entry-body p {
-    margin: 0.4em 0px 0.5em;
 }
 
 .entry-body ol {
