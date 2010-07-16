@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 import os
 import cgi
 import logging
@@ -26,6 +25,7 @@ import xss
 import taggable
 import markdown
 import paging
+import BeautifulSoup
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
@@ -33,6 +33,7 @@ from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.ext.webapp import template
 from google.appengine.ext.db import djangoforms
+from google.appengine.api.labs import taskqueue
 
 class CachedReferenceProperty(db.ReferenceProperty):
     _cache = weakref.WeakValueDictionary({})
@@ -92,6 +93,22 @@ class UserProfile(db.Model):
     def current_profile(self):
         return UserProfile.profile_for_user(users.get_current_user())
 
+class EntryIndex(db.Model):
+    bigrams = db.StringListProperty()
+    @classmethod
+    def create_bigram_set(self, text):
+        text = text.lower()
+        pattern = re.compile(r'\S\S')
+        bigrams = set()
+        for i in range(len(text) - 1):
+            bigram = text[i:i+2]
+            if pattern.match(bigram):
+                bigrams.add(bigram)
+                # ListProperty has 5000 limit
+                if len(bigrams) > 4999:
+                    break
+        return bigrams
+
 class Entry(db.Model, taggable.Taggable):
     user_profile = CachedReferenceProperty(UserProfile)
     created_at = db.DateTimeProperty(auto_now_add=True)
@@ -113,15 +130,25 @@ class Entry(db.Model, taggable.Taggable):
         source_lines = source.splitlines()
         for line in source_lines:
             if len(line.strip()) > 0:
-                self.summary = re.compile(r'<.*?>').sub('', markdown.markdown(line))
+                summary = re.compile(r'<.*?>').sub('', markdown.markdown(line))
+                if len(summary) > 255:
+                    summary = summary[:255]
+                self.summary = summary
                 break
+    def index(self):
+        soup = BeautifulSoup.BeautifulSoup(self.html)
+        text = ''.join(soup(text=True))
+        bigrams = EntryIndex.create_bigram_set(text)
+        index = EntryIndex(parent=self)
+        index.bigrams = list(bigrams)
+        index.put()
 
 class LoginHandler(webapp.RequestHandler):
     def get(self):
         if users.get_current_user():
             current_profile = UserProfile.current_profile()
             if current_profile:
-                self.redirect('/home')
+                self.redirect('/%s' % current_profile.username)
             else:
                 self.redirect('/signup')
         else:
@@ -173,7 +200,8 @@ class SignUpHandler(webapp.RequestHandler):
                     new_profile.web = form.clean_data['web']
                     new_profile.bio = form.clean_data['bio']
                     new_profile.put()
-                    self.redirect('/home')
+                    self.redirect('/%s' % current_profile.username)
+                    return
                 else:
                     template_values = {
                     'current_profile': current_profile,
@@ -236,8 +264,43 @@ class PostHandler(webapp.RequestHandler):
         entry.user_profile = current_profile
         entry.put()
         entry.setMarkdown(self.request.get('content'))
-        entry.put()
-        self.redirect('/home')
+        key = entry.put()
+        taskqueue.add(url='/worker/searchindex', params={'key': key})
+        self.redirect('/%s' % current_profile.username)
+
+class SearchHandler(webapp.RequestHandler):
+    def get(self):
+        current_profile = UserProfile.current_profile()
+        
+        query = self.request.get('q')
+        if len(query) < 2:
+            entries = []
+        else:    
+            normalized_query = query.lower()
+            bigrams = EntryIndex.create_bigram_set(normalized_query)
+            q = EntryIndex.all(keys_only=True)
+            filter_count = 0
+            for bigram in bigrams:
+                q.filter('bigrams =', bigram)
+                filter_count += 1
+                if filter_count > 99:
+                    break
+            keys = q.fetch(1000)
+            entries = db.get([k.parent() for k in keys])
+            def query_in_html(normalized_query, html):
+                soup = BeautifulSoup.BeautifulSoup(html)
+                text = ''.join(soup(text=True))
+                text = text.lower()
+                return text.find(normalized_query) > -1
+            entries = [entry for entry in entries if query_in_html(normalized_query, entry.html)]
+        template_values = {
+        'current_profile': current_profile,
+        'entries': entries,
+        'query': query
+        }
+
+        path = os.path.join(os.path.dirname(__file__), 'templates/home.html')
+        self.response.out.write(template.render(path, template_values))
 
 class EditHandler(webapp.RequestHandler):
     def get(self, key):
@@ -270,6 +333,7 @@ class EditHandler(webapp.RequestHandler):
         new_content = self.request.get('content')
         if new_content:
             entry.setMarkdown(new_content)
+            taskqueue.add(url='/worker/searchindex', params={'key': key})
             entry.put()
 
         template_values = {
@@ -292,15 +356,18 @@ class DeleteHandler(webapp.RequestHandler):
             self.error(401)
             return
         entry.delete()
-        self.redirect('/home')
+        self.redirect('/%s' % current_profile.username)
 
 class ArchiveHandler(webapp.RequestHandler):
     def get(self, username):
         current_profile = UserProfile.current_profile()
         
-        # TODO: Redirect home
         if username == 'home':
-            person_profile = current_profile
+            if current_profile:
+                self.redirect('/%s' % current_profile.username)
+            else:
+                self.redirect('/')
+            return
         else:
             person_profile = UserProfile.profile_for_username(username)
         
@@ -343,7 +410,12 @@ class RSSHandler(webapp.RequestHandler):
         current_profile = UserProfile.current_profile()
 
         if username == 'home':
-            person_profile = current_profile
+            if current_profile:
+                self.redirect('/rss/%s' % current_profile.username)
+            else:
+                self.redirect('/rss')
+            return
+            return
         else:
             person_profile = UserProfile.profile_for_username(username)
 
@@ -374,7 +446,8 @@ class TagHandler(webapp.RequestHandler):
         if username == 'tag':
             person_profile = None
         elif username == 'home':
-            person_profile = current_profile
+            self.redirect('/%s/%s' % (current_profile.username, tag_name))
+            return
         else:
             person_profile = UserProfile.profile_for_username(username)
 
@@ -433,7 +506,7 @@ class SingleEntryHandler(webapp.RequestHandler):
         'entries': entries,
         }
 
-        path = os.path.join(os.path.dirname(__file__), 'templates/home.html')
+        path = os.path.join(os.path.dirname(__file__), 'templates/single.html')
         self.response.out.write(template.render(path, template_values))
 
 class AboutHandler(webapp.RequestHandler):
@@ -469,9 +542,19 @@ class MainHandler(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'templates/public.html')
         self.response.out.write(template.render(path, template_values))
 
+class SearchIndexWorker(webapp.RequestHandler):
+    def post(self):
+        key = self.request.get('key')
+        def txn():
+            entry = db.get(key)
+            old_index = EntryIndex.all().ancestor(entry).get()
+            if old_index:
+                old_index.delete()
+            entry.index()
+        db.run_in_transaction(txn)
 
 def real_main():
-    application = webapp.WSGIApplication([('/', MainHandler), ('/about', AboutHandler), ('/login', LoginHandler), ('/logout', LogoutHandler), 
+    application = webapp.WSGIApplication([('/', MainHandler), ('/about', AboutHandler), ('/search', SearchHandler), ('/worker/searchindex', SearchIndexWorker), ('/login', LoginHandler), ('/logout', LogoutHandler), 
     ('/signup', SignUpHandler), ('/post', PostHandler), ('/settings', SettingsHandler), ('/entry/(.+)', SingleEntryHandler), 
     ('/edit/(.+)', EditHandler), ('/delete/(.+)', DeleteHandler), ('/([a-z][a-z0-9_]*)', ArchiveHandler), 
     ('/([a-z][a-z0-9_]*)/rss', RSSHandler), ('/([a-z][a-z0-9_]*)/(\w+)', TagHandler)],
