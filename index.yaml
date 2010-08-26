@@ -12,6 +12,19 @@ indexes:
 
 - kind: Entry
   properties:
+  - name: is_private
+  - name: modified_at
+    direction: desc
+
+- kind: Entry
+  properties:
+  - name: is_private
+  - name: user_profile
+  - name: modified_at
+    direction: desc
+
+- kind: Entry
+  properties:
   - name: user_profile
   - name: modified_at
     direction: desc

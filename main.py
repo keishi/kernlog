@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Copyright 2007 Google Inc.
 #
@@ -116,6 +117,7 @@ class Entry(db.Model, taggable.Taggable):
     markdown = db.TextProperty()
     html = db.TextProperty()
     summary = db.StringProperty(default="")
+    is_private = db.BooleanProperty(default=False)
     def __init__(self, parent=None, key_name=None, app=None, **entity_values):
         db.Model.__init__(self, parent, key_name, app, **entity_values)
         taggable.Taggable.__init__(self)
@@ -215,9 +217,9 @@ class SignUpHandler(webapp.RequestHandler):
 class SettingsForm(djangoforms.django.newforms.Form):
     username = djangoforms.django.newforms.fields.RegexField(required=True, regex=r'[a-z][a-z0-9_]*', min_length=3, max_length=255)
     email = djangoforms.django.newforms.fields.EmailField(required=True)
-    name = djangoforms.django.newforms.fields.CharField(max_length=255)
-    web = djangoforms.django.newforms.fields.URLField()
-    bio = djangoforms.django.newforms.fields.CharField(widget=djangoforms.django.newforms.Textarea)
+    name = djangoforms.django.newforms.fields.CharField(required=False, max_length=255)
+    web = djangoforms.django.newforms.fields.URLField(required=False)
+    bio = djangoforms.django.newforms.fields.CharField(required=False, widget=djangoforms.django.newforms.Textarea)
 
 class SettingsHandler(webapp.RequestHandler):
     def get(self):
@@ -262,6 +264,7 @@ class PostHandler(webapp.RequestHandler):
             return
         entry = Entry()
         entry.user_profile = current_profile
+        entry.is_private = (self.request.get('status') == 'private')
         entry.put()
         entry.setMarkdown(self.request.get('content'))
         key = entry.put()
@@ -330,10 +333,17 @@ class EditHandler(webapp.RequestHandler):
         if entry.user_profile.key() != current_profile.key():
             self.error(401)
             return
+        needs_put = False
+        new_is_private = (self.request.get('status') == 'private')
+        if new_is_private != entry.is_private:
+            entry.is_private = new_is_private
+            needs_put = True
         new_content = self.request.get('content')
-        if new_content:
+        if new_content and (new_content != entry.markdown):
             entry.setMarkdown(new_content)
             taskqueue.add(url='/worker/searchindex', params={'key': key})
+            needs_put = True
+        if needs_put:
             entry.put()
 
         template_values = {
@@ -371,6 +381,11 @@ class ArchiveHandler(webapp.RequestHandler):
         else:
             person_profile = UserProfile.profile_for_username(username)
         
+        if not person_profile:
+            self.error(404)
+            self.response.out.write('Sorry, that page doesn\'t exist!')
+            return
+        
         page = self.request.get('page')
         if (not page):
             page = 1
@@ -379,7 +394,11 @@ class ArchiveHandler(webapp.RequestHandler):
         
         entries_per_page = 10
         
-        q = Entry.all().filter('user_profile =', person_profile).order('-modified_at')
+        q = Entry.all()
+        q.filter('user_profile =', person_profile)
+        if current_profile.username != person_profile.username:
+            q.filter('is_private =', False)
+        q.order('-modified_at')
     	pq = paging.PagedQuery(q, entries_per_page)
         entries = pq.fetch_page(page)
         page_count = pq.page_count()
@@ -529,7 +548,7 @@ class MainHandler(webapp.RequestHandler):
         current_profile = UserProfile.current_profile()
 
         entries_per_page = 10
-        q = Entry.gql('ORDER BY modified_at DESC')
+        q = Entry.all().filter('is_private =', False).order('-modified_at')
         entry_count = q.count()
         page_count = int(entry_count / entries_per_page + 0.5)
         entries = q.fetch(entries_per_page)

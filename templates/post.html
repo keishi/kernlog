@@ -17,6 +17,7 @@ jQuery(document).ready(function () {
 <div id="post-container">
     <form action="{% if edit_entry %}/edit/{{ edit_entry.key }}{% else %}/post{% endif %}" method="post">
         <div><textarea name="content" id="post-content">{% if edit_entry %}{{ edit_entry.markdown}}{% endif %}</textarea></div>
+		<div><input type="checkbox" name="status" value="private"{% if edit_entry.is_private %} checked{% endif %}> Private</div>
         <div><input type="submit" value="{% if edit_entry %}Save{% else %}Post{% endif %}"></div>
     </form>
 </div>
